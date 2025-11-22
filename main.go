@@ -7,17 +7,17 @@ import (
 	"strings"
 )
 
-// 定义爻信息
-type YaoInfo struct {
-	position string // 爻位 (初、二、三、四、五、上)
-	ben      string // 本卦阴阳 (阳爻"─", 阴爻"--")
-	bian     string // 变卦阴阳
-	dong     string // 动爻标记 ("○"动爻, "●"变爻, " "不动)
-	naJia    string // 纳甲 (地支)
-	shiYing  string // 世应标记 ("世"或"应")
-	liuQin   string // 六亲
-	liuShen  string // 六神
-}
+// // 定义爻信息
+// type YaoInfo struct {
+// 	position string // 爻位 (初、二、三、四、五、上)
+// 	ben      string // 本卦阴阳 (阳爻"─", 阴爻"--")
+// 	bian     string // 变卦阴阳
+// 	dong     string // 动爻标记 ("○"动爻, "●"变爻, " "不动)
+// 	naJia    string // 纳甲 (地支)
+// 	shiYing  string // 世应标记 ("世"或"应")
+// 	liuQin   string // 六亲
+// 	liuShen  string // 六神
+// }
 
 // 生成随机投掷结果
 func randomToss() string {
@@ -34,25 +34,12 @@ func randomToss() string {
 }
 
 func main() {
-	// // 示例：山水蒙卦 (010001)
-	// if result, err := pkg.ParseHexagram("010001"); err == nil {
-	// 	fmt.Println("山水蒙卦纳甲:")
-	// 	positions := []string{"初爻", "二爻", "三爻", "四爻", "五爻", "上爻"}
-	// 	for i, ganzhi := range result {
-	// 		fmt.Printf("%s: %s\n", positions[i], ganzhi)
-	// 	}
-	// } else {
-	// 	fmt.Println("错误:", err)
-	// }
 
 	tosses := make([]string, 6)
 	for i := range tosses {
 
 		tosses[i] = randomToss()
-
-		//fmt.Println(tosses[i])
 		fmt.Println(pkg.ParseToss(tosses[i]))
-
 	}
 
 	fmt.Println(tosses)
