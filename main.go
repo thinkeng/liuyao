@@ -5,6 +5,7 @@ import (
 	"liuyao/pkg"
 	"math/rand"
 	"strings"
+	"time"
 )
 
 // // 定义爻信息
@@ -49,7 +50,11 @@ func main() {
 	// 打印卦象
 	printGua(gua)
 
-	dayGan := "乙" // 占卜日天干
+	baZi, dayKong := pkg.GetDayGanZhi(time.Now())
+	fmt.Println("日期: ", baZi.GetYear()+" "+baZi.GetMonth()+" "+baZi.GetDay()+" "+baZi.GetTime())
+	fmt.Println("旬空: ", dayKong)
+
+	dayGan := baZi.GetDayGan()
 
 	hexagram := strings.Join(gua.BenGua, "")
 	if result, err := pkg.GetGuaInfo(hexagram, dayGan); err == nil {
