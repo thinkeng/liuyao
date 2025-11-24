@@ -1,4 +1,4 @@
-module liuyao
+module github.com/thinkeng/liuyao
 
 go 1.24.3
 
