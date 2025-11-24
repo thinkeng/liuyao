@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"liuyao/pkg"
+	"github.com/thinkeng/liuyao/pkg"
 	"math/rand"
 	"strings"
 	"time"
