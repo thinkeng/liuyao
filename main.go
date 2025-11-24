@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/thinkeng/liuyao/pkg"
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/thinkeng/liuyao/pkg"
 )
 
 // // 定义爻信息
@@ -55,6 +56,8 @@ func main() {
 	fmt.Println("旬空: ", dayKong)
 
 	dayGan := baZi.GetDayGan()
+	dayZhi := baZi.GetDayZhi()
+	monthZhi := baZi.GetMonthZhi()
 
 	hexagram := strings.Join(gua.BenGua, "")
 	if result, err := pkg.GetGuaInfo(hexagram, dayGan); err == nil {
@@ -62,6 +65,11 @@ func main() {
 		palaceIndex, _, _ := pkg.GetGuaPalace(guaName)
 		palaceWuXing := pkg.GetPalaceWuXing(palaceIndex)
 		fmt.Printf("本卦: %s (%s) 纳甲与六神配置 (日干:%s):\n", guaName, hexagram, dayGan)
+
+		// Display Shen Sha Config
+		shenShaConfig := pkg.GetShenShaConfig(dayGan, dayZhi, monthZhi)
+		fmt.Printf("神煞: %s\n", strings.Join(shenShaConfig, " "))
+
 		fmt.Println("====================================")
 		//fmt.Println("爻位\t干支\t六神\t六亲\t世应\t伏神\t爻类型")
 		fmt.Println("爻位\t六神\t六亲\t干支\t伏神    \t世应\t爻类型")
