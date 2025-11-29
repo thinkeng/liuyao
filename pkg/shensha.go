@@ -107,7 +107,7 @@ func GetShenShaConfig(dayGan, dayZhi, monthZhi string) []string {
 	// Map to store Shen Sha -> Branches
 	shenShaMap := make(map[string][]string)
 	shenShaOrder := []string{
-		"贵人", "禄神", "羊刃", "文昌", "驿马", "桃花", "劫煞", "华盖", "将星", "谋星", "天喜", "灾煞",
+		"贵人", "禄神", "羊刃", "文昌", "灾煞", "驿马", "桃花", "劫煞", "华盖", "将星", "谋星", "天喜",
 	}
 
 	for _, zhi := range earthlyBranches {
