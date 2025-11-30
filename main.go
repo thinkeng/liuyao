@@ -117,6 +117,40 @@ func main() {
 		fmt.Println("错误:", err)
 	}
 
+	// Hexagram Analysis
+	fmt.Println("\n====================================")
+	fmt.Println("开始解卦 (Hexagram Analysis)...")
+	fmt.Println("====================================")
+
+	// For now, hardcode a category or use a simple input simulation
+	// In a real CLI, we would use flags or interactive input.
+	// Let's default to "Wealth" for demonstration.
+	category := pkg.CategoryWealth
+	fmt.Printf("设定求测事项: %s (默认)\n", category)
+
+	// Need Bian Hexagram and Changed array
+	// gua.BianGua is []string, need to join
+	bianHexagram := strings.Join(gua.BianGua, "")
+
+	analysisCtx := pkg.AnalysisContext{
+		GuaHexagram:  hexagram,
+		BianHexagram: bianHexagram,
+		Changed:      gua.Changed,
+		DayGan:       dayGan,
+		DayZhi:       dayZhi,
+		MonthZhi:     monthZhi,
+		DayXunKong:   dayKong,
+		Category:     category,
+		Date:         time.Now(),
+	}
+
+	analysisResult, err := pkg.Analyze(analysisCtx)
+	if err != nil {
+		fmt.Printf("解卦失败: %v\n", err)
+	} else {
+		report := pkg.GenerateReport(analysisResult)
+		fmt.Println(report)
+	}
 }
 
 // 打印卦象
