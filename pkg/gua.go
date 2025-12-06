@@ -325,7 +325,7 @@ func GetGuaInfo(hexagramStr, dayGan string) ([]GuaInfo, error) {
 						// Found a Fu Shen!
 						// Format: "伏Name:Ganzhi" e.g. "伏父母:乙未"
 						// Or just "父母:乙未"
-						fuShenMap[i] = fmt.Sprintf("%s%s", bgLiuQin, bgGanzhi)
+						fuShenMap[i] = fmt.Sprintf("%s:%s", bgLiuQin, bgGanzhi)
 					}
 				}
 			}
