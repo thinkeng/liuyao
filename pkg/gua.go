@@ -76,6 +76,71 @@ var (
 		"坤为地": {7, 0}, "地雷复": {7, 1}, "地泽临": {7, 2}, "地天泰": {7, 3},
 		"雷天大壮": {7, 4}, "泽天夬": {7, 5}, "水天需": {7, 6}, "水地比": {7, 7},
 	}
+
+	binaryToGuaIndex = map[string][2]int{
+		// 乾宫 (0)
+		"111111": {0, 0}, "011111": {0, 1}, "001111": {0, 2}, "000111": {0, 3},
+		"000011": {0, 4}, "000001": {0, 5}, "000101": {0, 6}, "111101": {0, 7},
+
+		// 兑宫 (1)
+		"110110": {1, 0}, "010110": {1, 1}, "000110": {1, 2}, "001110": {1, 3},
+		"001010": {1, 4}, "001000": {1, 5}, "001100": {1, 6}, "110100": {1, 7},
+
+		// 离宫 (2)
+		"101101": {2, 0}, "001101": {2, 1}, "011101": {2, 2}, "010101": {2, 3},
+		"010001": {2, 4}, "010011": {2, 5}, "010111": {2, 6}, "101111": {2, 7},
+
+		// 震宫 (3)
+		"100100": {3, 0}, "000100": {3, 1}, "010100": {3, 2}, "011100": {3, 3},
+		"011000": {3, 4}, "011010": {3, 5}, "011110": {3, 6}, "100110": {3, 7},
+
+		// 巽宫 (4)
+		"011011": {4, 0}, "111011": {4, 1}, "101011": {4, 2}, "100011": {4, 3},
+		"100111": {4, 4}, "100101": {4, 5}, "100001": {4, 6}, "011001": {4, 7},
+
+		// 坎宫 (5)
+		"010010": {5, 0}, "110010": {5, 1}, "100010": {5, 2}, "101010": {5, 3},
+		"101110": {5, 4}, "101100": {5, 5}, "101000": {5, 6}, "010000": {5, 7},
+
+		// 艮宫 (6)
+		"001001": {6, 0}, "101001": {6, 1}, "111001": {6, 2}, "110001": {6, 3},
+		"110101": {6, 4}, "110111": {6, 5}, "110011": {6, 6}, "001011": {6, 7},
+
+		// 坤宫 (7)
+		"000000": {7, 0}, "100000": {7, 1}, "110000": {7, 2}, "111000": {7, 3},
+		"111100": {7, 4}, "111110": {7, 5}, "111010": {7, 6}, "000010": {7, 7},
+	}
+
+	// 完整的六冲卦列表 (12个)
+	// 完整的六冲卦列表 (10个)
+	allLiuChongGua = map[string]bool{
+		// 八纯卦 (8个)
+		"111111": true, // 乾为天
+		"000000": true, // 坤为地
+		"110110": true, // 兑为泽
+		"101101": true, // 离为火
+		"100100": true, // 震为雷
+		"011011": true, // 巽为风
+		"010010": true, // 坎为水
+		"001001": true, // 艮为山
+		// 其它冲卦 (2个)
+		"100111": true, // 天雷无妄
+		"111100": true, // 雷天大壮
+	}
+
+	// 完整的六合卦列表 (10个)
+	liuHeGua = map[string]bool{
+		"000111": true, // 天地否
+		"111000": true, // 地天泰
+		"100000": true, // 地雷复
+		"000100": true, // 雷地豫
+		"101001": true, // 山火贲
+		"001101": true, // 火山旅
+		"001110": true, // 泽山咸
+		"110001": true, // 山泽损
+		"010110": true, // 泽水困
+		"110010": true, // 水泽节
+	}
 )
 
 // 生成卦
@@ -345,4 +410,48 @@ func GetBenGongGuaBinary(palaceIndex int) string {
 		return triBin + triBin
 	}
 	return ""
+}
+
+// GetPalaceName returns the name of the palace based on index.
+func GetPalaceName(palaceIndex int) string {
+	if palaceIndex >= 0 && palaceIndex < len(trigrams) {
+		return trigrams[palaceIndex].name
+	}
+	return ""
+}
+
+// CheckGuaType checks if a hexagram is Liu He or Liu Chong.
+// Returns isLiuHe, isLiuChong
+func CheckGuaType(hex string) (bool, bool) {
+	return liuHeGua[hex], allLiuChongGua[hex]
+}
+
+// GetFullGuaName returns the formatted name including palace info.
+// e.g. "风地观（乾）", "雷山小过（兑-游魂）"
+func GetFullGuaName(hex string) string {
+	baseName := DetermineGuaName(hex)
+	palaceIndex, indexInPalace, _ := GetGuaPalace(baseName)
+
+	if palaceIndex == -1 {
+		return baseName
+	}
+
+	palaceName := GetPalaceName(palaceIndex)
+	suffix := ""
+	if indexInPalace == 6 {
+		suffix = "-游魂"
+	} else if indexInPalace == 7 {
+		suffix = "-归魂"
+	}
+
+	// Check for Liu He / Liu Chong
+	isLiuHe, isLiuChong := CheckGuaType(hex)
+	nature := ""
+	if isLiuHe {
+		nature = "-六合"
+	} else if isLiuChong {
+		nature = "-六冲"
+	}
+
+	return fmt.Sprintf("%s（%s%s%s）", baseName, palaceName, suffix, nature)
 }

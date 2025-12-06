@@ -62,9 +62,10 @@ func main() {
 	hexagram := strings.Join(gua.BenGua, "")
 	if result, err := pkg.GetGuaInfo(hexagram, dayGan); err == nil {
 		guaName := pkg.DetermineGuaName(hexagram)
+		fullGuaName := pkg.GetFullGuaName(hexagram)
 		palaceIndex, _, _ := pkg.GetGuaPalace(guaName)
 		palaceWuXing := pkg.GetPalaceWuXing(palaceIndex)
-		fmt.Printf("本卦: %s (%s) 纳甲与六神配置 (日干:%s):\n", guaName, hexagram, dayGan)
+		fmt.Printf("本卦: %s (%s) 纳甲与六神配置 (日干:%s):\n", fullGuaName, hexagram, dayGan)
 
 		// Display Shen Sha Config
 		shenShaConfig := pkg.GetShenShaConfig(dayGan, dayZhi, monthZhi)
@@ -98,7 +99,7 @@ func main() {
 			bianHexagram := strings.Join(gua.BianGua, "")
 			// Use GetBianGuaInfo with Ben Gua's Palace Wu Xing
 			if bianResult, err := pkg.GetBianGuaInfo(bianHexagram, dayGan, palaceWuXing); err == nil {
-				bianGuaName := pkg.DetermineGuaName(bianHexagram)
+				bianGuaName := pkg.GetFullGuaName(bianHexagram)
 				fmt.Printf("\n变卦: %s (%s) 纳甲与六神配置:\n", bianGuaName, bianHexagram)
 				fmt.Println("====================================")
 				//fmt.Println("爻位\t干支\t六神\t六亲\t世应\t爻类型")
