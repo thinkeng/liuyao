@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 
@@ -36,6 +37,22 @@ func randomToss() string {
 }
 
 func main() {
+
+	const filename = "卦辞.md"
+
+	// 1. 读取文件内容
+	contentBytes, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Printf("❌ 文件读取失败：请确保文件【%s】存在于当前目录，并包含正确的八宫Markdown内容。\n错误信息: %v\n", filename, err)
+		return
+	}
+
+	markdownContent := string(contentBytes)
+
+	// 2. 建立结构体索引
+	pkg.InitGuaCiIndex(markdownContent)
+
+	//============
 
 	tosses := make([]string, 6)
 	for i := range tosses {
@@ -151,6 +168,22 @@ func main() {
 	} else {
 		report := pkg.GenerateReport(analysisResult)
 		fmt.Println(report)
+
+		// Display Text Info (Gua & Yao)
+		fmt.Println("================动爻卦辞====================")
+		guaText, _, _ := pkg.QueryGuaAndYaoCi(analysisResult.GuaName, "")
+
+		fmt.Println(strings.Repeat("-", 40))
+		fmt.Printf("【卦名】: %s %s (%s)\n", guaText.Name, guaText.Hexagram, guaText.Alias)
+		fmt.Printf("【卦辞】: %s\n", guaText.GuaCi)
+
+		for _, yao := range analysisResult.MovingYaos {
+			fmt.Println(strings.Repeat("-", 20))
+			fmt.Printf("【动爻】: %s (变 %s)\n", yao.YaoName, yao.BianGuaName)
+			fmt.Printf("【本爻辞】: %s\n", yao.BenYaoCi)
+			fmt.Printf("【爻动含义】: %s\n", yao.YaoDongHanYi)
+		}
+		fmt.Println(strings.Repeat("-", 40))
 	}
 }
 

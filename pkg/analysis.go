@@ -31,23 +31,55 @@ type AnalysisContext struct {
 
 // AnalysisResult holds the output of the analysis
 type AnalysisResult struct {
-	YongShen      string   // The Use God (e.g., "官鬼")
-	YongShenYao   GuaInfo  // The specific Yao representing the Use God
-	YongShenIndex int      // Index of the Use God Yao (0-5)
-	Strength      string   // Overall strength description
-	Judgment      string   // "Ji" (Auspicous) or "Xiong" (Inauspicious)
-	Details       []string // Detailed analysis steps
+	YongShen      string    // The Use God (e.g., "官鬼")
+	YongShenYao   GuaInfo   // The specific Yao representing the Use God
+	YongShenIndex int       // Index of the Use God Yao (0-5)
+	Strength      string    // Overall strength description
+	Judgment      string    // "Ji" (Auspicous) or "Xiong" (Inauspicious)
+	Details       []string  // Detailed analysis steps
+	GuaName       string    // 卦名
+	GuaCi         string    // 卦辞
+	CoreMeaning   string    // 核心意象
+	MovingYaos    []YaoText // 动爻文本信息
 }
 
 // Analyze performs the hexagram analysis
 func Analyze(ctx AnalysisContext) (AnalysisResult, error) {
 	result := AnalysisResult{
-		Details: make([]string, 0),
+		Details:    make([]string, 0),
+		MovingYaos: make([]YaoText, 0),
 	}
 
 	// 1. Determine Use God (Yong Shen)
 	yongShen := DetermineYongShen(ctx.Category)
 	result.YongShen = yongShen
+
+	// --- Enrich Text Info (Gua & Yao) ---
+	guaName := DetermineGuaName(ctx.GuaHexagram)
+	result.GuaName = guaName
+
+	// Query Gua Text
+	guaText, _, errGua := QueryGuaAndYaoCi(guaName, "")
+	if errGua == nil {
+		result.GuaCi = guaText.GuaCi
+		result.CoreMeaning = guaText.CoreMeaning
+	}
+
+	// Query Moving Yao Text
+	for i, changed := range ctx.Changed {
+		if changed {
+			// Construct Yao Name (e.g., "初九", "六二")
+			// Binary string index 0 is Bottom (Line 1)
+			bit := string(ctx.GuaHexagram[i])
+			yaoName := GetYaoName(i, bit)
+
+			_, yaoText, errYao := QueryGuaAndYaoCi(guaName, yaoName)
+			if errYao == nil {
+				result.MovingYaos = append(result.MovingYaos, yaoText)
+			}
+		}
+	}
+	// ------------------------------------
 
 	categoryCn := ctx.Category
 	switch ctx.Category {
@@ -812,12 +844,41 @@ func CheckLiuHe(a, b string) string {
 	if (a == "巳" && b == "申") || (a == "申" && b == "巳") {
 		return "巳申合水"
 	}
-	// Wu-Wei -> Earth (or Fire/Earth depending on school, usually Earth/Fire) -> Earth mostly
+	// Wu-Wei -> Earth (or Fire/Earth?) - Standard is Earth (sums to Earth) or Fire (Summer)
+	// Usually "Wu Wei He Tu"
 	if (a == "午" && b == "未") || (a == "未" && b == "午") {
 		return "午未合土"
 	}
 
 	return ""
+}
+
+// GetYaoName converts index (0-5) and bit ("0"or"1") to Yao Name (e.g. "初九", "六二")
+func GetYaoName(index int, val string) string {
+	// Index 0 is Bottom (Line 1/初)
+	// Index 5 is Top (Line 6/上)
+
+	positions := []string{"初", "二", "三", "四", "五", "上"}
+	yinYang := "六"
+	if val == "1" {
+		yinYang = "九"
+	}
+
+	if index < 0 || index > 5 {
+		return ""
+	}
+
+	pos := positions[index]
+
+	// Rules:
+	// Line 1 (Index 0): Pos + YinYang (e.g. 初九)
+	// Line 2-5: YinYang + Pos (e.g. 九二)
+	// Line 6 (Index 5): Pos + YinYang (e.g. 上六)
+
+	if index == 0 || index == 5 {
+		return pos + yinYang
+	}
+	return yinYang + pos
 }
 
 // CheckLiuHai checks for Six Harms (Liu Hai)
@@ -1162,9 +1223,9 @@ func GenerateReport(result AnalysisResult) string {
 
 	sb.WriteString("\n--- 建议 ---\n")
 	if result.Judgment == "吉" {
-		sb.WriteString("卦象吉利，可以积极行动，充满信心。\n")
+		// sb.WriteString("卦象吉利，可以积极行动，充满信心。\n")
 	} else {
-		sb.WriteString("卦象不佳，建议谨慎行事，静待时机。\n")
+		// sb.WriteString("卦象不佳，建议谨慎行事，静待时机。\n")
 	}
 
 	return sb.String()
