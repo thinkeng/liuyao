@@ -10,12 +10,12 @@ type YaoData struct {
 }
 
 type GuaData struct {
-	Name        string
-	BinaryCode  string
-	GuaCi       string
-	DaXiang     string
-	CoreMeaning string
-	Yaos        []YaoData
+	Name        string    `json:"name"`
+	BinaryCode  string    `json:"binaryCode"`
+	GuaCi       string    `json:"guaCi"`
+	DaXiang     string    `json:"daXiang"`
+	CoreMeaning string    `json:"coreMeaning"`
+	Yaos        []YaoData `json:"yaos"`
 }
 
 var GuaIndex = map[string]GuaData{
