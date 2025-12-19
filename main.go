@@ -36,7 +36,7 @@ func randomToss() string {
 	return string(result)
 }
 
-func main() {
+func main22() {
 
 	const filename = "卦辞.md"
 
