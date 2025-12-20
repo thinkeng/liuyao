@@ -172,7 +172,7 @@ var GuaIndex = map[string]GuaData{
 	"000110": {
 		Name:        "泽地萃",
 		BinaryCode:  "000110",
-		GuaCi:       "亨。王假有庙，利见大人，亨，利贞。",
+		GuaCi:       "亨。王假有庙，利见大人，亨，利贞。用大牲吉，利有攸往。",
 		DaXiang:     "泽上于地，萃；君子以除戎器，戒不虞。",
 		CoreMeaning: "泽上于地",
 		Yaos: []YaoData{
@@ -232,7 +232,7 @@ var GuaIndex = map[string]GuaData{
 	"001100": {
 		Name:        "雷山小过",
 		BinaryCode:  "001100",
-		GuaCi:       "亨，利贞。可小事，不可大事。",
+		GuaCi:       "亨，利贞。可小事，不可大事。飞鸟遗之音，不宜上，宜下，大吉。",
 		DaXiang:     "山上有雷，小过；君子以行过乎恭，丧过乎哀，用过乎俭。",
 		CoreMeaning: "山上有雷",
 		Yaos: []YaoData{
@@ -322,7 +322,7 @@ var GuaIndex = map[string]GuaData{
 	"010001": {
 		Name:        "山水蒙",
 		BinaryCode:  "010001",
-		GuaCi:       "亨。匪我求童蒙，童蒙求我。初筮告，再三渎，渎则不告。",
+		GuaCi:       "亨。匪我求童蒙，童蒙求我。初筮告，再三渎，渎则不告。利贞。",
 		DaXiang:     "山下出泉，蒙；君子以果行育德。",
 		CoreMeaning: "山下出泉",
 		Yaos: []YaoData{
@@ -337,7 +337,7 @@ var GuaIndex = map[string]GuaData{
 	"010011": {
 		Name:        "风水涣",
 		BinaryCode:  "010011",
-		GuaCi:       "亨。王假有庙，利涉大川。",
+		GuaCi:       "亨。王假有庙，利涉大川，利贞。",
 		DaXiang:     "风行水上，涣。先王以享于帝立庙。",
 		CoreMeaning: "风行水上",
 		Yaos: []YaoData{
