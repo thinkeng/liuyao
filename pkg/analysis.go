@@ -211,39 +211,57 @@ func Analyze(ctx AnalysisContext) (AnalysisResult, error) {
 	result.YongShenIndex = foundIndex
 	result.YongShenYao = guaInfo[foundIndex]
 
-	// Check if Use God is Fu Shen (Hidden Spirit) and analyze relationship with Fei Shen (Flying Spirit)
-	if result.YongShenYao.FuShen != "" && strings.Contains(result.YongShenYao.FuShen, yongShen) {
-		// Use God is Fu Shen, analyze relationship with Fei Shen
-		// Fei Shen is the current line (result.YongShenYao)
-		feiShenWuXing := GetWuXingFromGanZhi(result.YongShenYao.Ganzhi)
+	// Phase 1.5: Fu Shen (Hidden Spirit) Handling
+	isFuShen := result.YongShenYao.FuShen != "" && strings.Contains(result.YongShenYao.FuShen, yongShen)
+	var fuShenGanzhi string
+	fuShenScore := 0
 
-		// Extract Fu Shen Ganzhi from FuShen field (format: "父母:乙巳")
+	if isFuShen {
 		fuShenParts := strings.Split(result.YongShenYao.FuShen, ":")
 		if len(fuShenParts) == 2 {
-			fuShenGanzhi := fuShenParts[1]
+			fuShenGanzhi = fuShenParts[1]
 			fuShenWuXing := GetWuXingFromGanZhi(fuShenGanzhi)
+			fuShenZhi := string([]rune(fuShenGanzhi)[1])
+			feiShenWuXing := GetWuXingFromGanZhi(result.YongShenYao.Ganzhi)
+			monthWuXing := GetWuXing(ctx.MonthZhi)
+			dayWuXing := GetWuXing(ctx.DayZhi)
 
-			// Analyze Fei Shen -> Fu Shen relationship
+			// 1. Month/Day Influence (Decisive) - Added to details first
+			monthStr := GetMonthStrength(fuShenWuXing, monthWuXing)
+			dayStr := GetDayStrength(fuShenWuXing, dayWuXing)
+			result.Details = append(result.Details, fmt.Sprintf("伏神月日影响: 月建(%s) %s, 日辰(%s) %s", monthWuXing, monthStr, dayWuXing, dayStr))
+
+			// 2. Fei-Fu Relationship (Supportive)
 			feiToFuRelation := GetRelation(feiShenWuXing, fuShenWuXing)
-			// Analyze Fu Shen -> Fei Shen relationship
 			fuToFeiRelation := GetRelation(fuShenWuXing, feiShenWuXing)
 
-			fuShenDetail := fmt.Sprintf("伏神关系: 飞神 %s (%s, %s)",
-				result.YongShenYao.LiuQin, result.YongShenYao.Ganzhi, feiShenWuXing)
-
+			fuShenDetail := fmt.Sprintf("飞伏关系: 飞神 %s (%s) ", result.YongShenYao.LiuQin, result.YongShenYao.Ganzhi)
 			if feiToFuRelation == "Sheng" {
-				fuShenDetail += fmt.Sprintf(" 生 伏神 %s (%s) -> 吉 (伏神得生)", fuShenGanzhi, fuShenWuXing)
+				fuShenDetail += "生 伏神 -> 飞生伏 (吉)"
+				fuShenScore += 2
 			} else if feiToFuRelation == "Ke" {
-				fuShenDetail += fmt.Sprintf(" 克 伏神 %s (%s) -> 凶 (伏神受制)", fuShenGanzhi, fuShenWuXing)
+				fuShenDetail += "克 伏神 -> 飞克伏 (凶)"
+				fuShenScore -= 2
 			} else if fuToFeiRelation == "Sheng" {
-				fuShenDetail += fmt.Sprintf(" 被伏神 %s (%s) 生 -> 凶 (飞神泄伏神)", fuShenGanzhi, fuShenWuXing)
+				fuShenDetail += "被 伏神 生 -> 伏生飞 (泄气)"
+				fuShenScore -= 1
 			} else if fuToFeiRelation == "Ke" {
-				fuShenDetail += fmt.Sprintf(" 被伏神 %s (%s) 克 -> 吉 (伏神制飞)", fuShenGanzhi, fuShenWuXing)
+				fuShenDetail += "被 伏神 克 -> 伏克飞 (吉)"
+				fuShenScore += 1
 			} else {
-				fuShenDetail += fmt.Sprintf(" 与伏神 %s (%s) 无生克", fuShenGanzhi, fuShenWuXing)
+				fuShenDetail += "与 伏神 比和/无生克"
 			}
-
 			result.Details = append(result.Details, fuShenDetail)
+
+			// 3. Special States
+			if CheckXunKong(fuShenGanzhi, ctx.DayXunKong) {
+				result.Details = append(result.Details, "伏神特殊状态: 旬空")
+				fuShenScore -= 2
+			}
+			if IsChong(ctx.MonthZhi, fuShenZhi) {
+				result.Details = append(result.Details, "伏神特殊状态: 月破")
+				fuShenScore -= 4
+			}
 		}
 	}
 
@@ -268,7 +286,32 @@ func Analyze(ctx AnalysisContext) (AnalysisResult, error) {
 		}
 	}
 
-	strength, strengthDetails := CalculateStrength(result.YongShenYao, bianYaoInfo, isMoving, ctx.MonthZhi, ctx.DayZhi, ctx.DayXunKong)
+	// Use virtual YaoInfo if Fu Shen
+	targetYaoInfo := result.YongShenYao
+	if isFuShen && fuShenGanzhi != "" {
+		targetYaoInfo.Ganzhi = fuShenGanzhi
+		targetYaoInfo.FuShen = "" // Don't trigger recursive Fu Shen checks in CalculateStrength
+	}
+
+	strength, strengthDetails := CalculateStrength(targetYaoInfo, bianYaoInfo, isMoving, ctx.MonthZhi, ctx.DayZhi, ctx.DayXunKong)
+
+	// Apply Fu Shen score adjustment if applicable
+	if isFuShen {
+		if fuShenScore >= 2 {
+			if strength == "弱" {
+				strength = "中平 (飞神生助)"
+			} else if strength == "中平" {
+				strength = "强"
+			}
+		} else if fuShenScore <= -2 {
+			if strength == "强" {
+				strength = "中平 (飞神克制)"
+			} else if strength == "中平" {
+				strength = "弱"
+			}
+		}
+	}
+
 	result.Strength = strength
 	result.Details = append(result.Details, strengthDetails...)
 
@@ -561,17 +604,21 @@ func Analyze(ctx AnalysisContext) (AnalysisResult, error) {
 		}
 	}
 
-	// Phase 3: Global Bureau Check (San He / San Hui)
-	// A San He/San Hui bureau is valid if all required branches exist and at least one is "Active".
 	type BranchSource struct {
 		Zhi      string
 		Source   string
-		IsActive bool
+		IsDay    bool
+		IsMonth  bool
+		IsDong   bool // Is a moving line in Ben Gua (Dong Yao)
+		IsBian   bool // Is a transformed line (Bian Yao)
+		IsAnDong bool // Is a static line activated by day/month clash
 	}
 
 	var allBranches []BranchSource
-	allBranches = append(allBranches, BranchSource{Zhi: ctx.DayZhi, Source: "日建", IsActive: true})
-	allBranches = append(allBranches, BranchSource{Zhi: ctx.MonthZhi, Source: "月建", IsActive: true})
+	allBranches = append(allBranches, BranchSource{Zhi: ctx.DayZhi, Source: "日建", IsDay: true})
+	allBranches = append(allBranches, BranchSource{Zhi: ctx.MonthZhi, Source: "月建", IsMonth: true})
+
+	monthWuXing = GetWuXing(ctx.MonthZhi)
 
 	for i, info := range guaInfo {
 		zhi := string([]rune(info.Ganzhi)[1])
@@ -579,10 +626,30 @@ func Analyze(ctx AnalysisContext) (AnalysisResult, error) {
 		if len(ctx.Changed) > i && ctx.Changed[i] {
 			isMoving = true
 		}
-		allBranches = append(allBranches, BranchSource{Zhi: zhi, Source: info.Position, IsActive: isMoving})
+
+		isAnDong := false
+		if !isMoving {
+			lineWuXing := GetWuXingFromGanZhi(info.Ganzhi)
+			monthStr := GetMonthStrength(lineWuXing, monthWuXing)
+			if IsStrong(monthStr) && IsChong(ctx.DayZhi, zhi) {
+				isAnDong = true
+			}
+		}
+
+		allBranches = append(allBranches, BranchSource{
+			Zhi:      zhi,
+			Source:   info.Position,
+			IsDong:   isMoving,
+			IsAnDong: isAnDong,
+		})
+
 		if isMoving && len(bianGuaInfoAll) > i {
 			bianZhi := string([]rune(bianGuaInfoAll[i].Ganzhi)[1])
-			allBranches = append(allBranches, BranchSource{Zhi: bianZhi, Source: info.Position + "变", IsActive: true})
+			allBranches = append(allBranches, BranchSource{
+				Zhi:    bianZhi,
+				Source: info.Position + "变",
+				IsBian: true,
+			})
 		}
 	}
 
@@ -602,43 +669,75 @@ func Analyze(ctx AnalysisContext) (AnalysisResult, error) {
 	}
 
 	for _, triad := range triads {
-		found := make(map[string]string)
-		hasActive := false
 		count := 0
+		members := []BranchSource{}
+		foundBranches := make(map[string]bool)
+
 		for _, target := range triad.Branches {
 			for _, b := range allBranches {
 				if b.Zhi == target {
-					found[target] = b.Source
-					if b.IsActive {
-						hasActive = true
-					}
+					members = append(members, b)
+					foundBranches[target] = true
 					count++
 					break
 				}
 			}
 		}
 
-		if count == 3 && hasActive {
+		if count == 3 {
+			numDongAn := 0
+			numDayMonth := 0
+			numBian := 0
 			var parts []string
 			containsYongShen := false
-			for _, b := range triad.Branches {
-				parts = append(parts, fmt.Sprintf("%s(%s)", b, found[b]))
-				if b == yongShenZhi {
+
+			for _, m := range members {
+				label := m.Source
+				if m.IsAnDong {
+					label += "/暗动"
+					numDongAn++
+				} else if m.IsDong {
+					numDongAn++
+				} else if m.IsDay || m.IsMonth {
+					numDayMonth++
+				} else if m.IsBian {
+					numBian++
+				}
+
+				parts = append(parts, fmt.Sprintf("%s(%s)", m.Zhi, label))
+				if m.Zhi == yongShenZhi {
 					containsYongShen = true
 				}
 			}
-			bureauDesc := fmt.Sprintf("三合%s局: %s", triad.Element, strings.Join(parts, " "))
-			result.Details = append(result.Details, bureauDesc)
 
-			// Impact on Yong Shen
-			if containsYongShen {
-				bureauInfluence += 4 // Strong integration
-			} else if triad.Element == yongShenWuXing {
-				bureauInfluence += 3 // Same element helps
-			} else if IsSheng(triad.Element, yongShenWuXing) {
-				bureauInfluence += 2 // Sheng helps
-			} else if IsKe(triad.Element, yongShenWuXing) {
-				bureauInfluence -= 4 // Ke hurts
+			// Shi Ju Check:
+			// 1. 3 Dong/AnDong
+			// 2. 2 Dong/AnDong + 1 Day/Month
+			// 3. 1 Dong/AnDong + 1 Bian + 1 Day/Month
+			isShiJu := (numDongAn == 3) ||
+				(numDongAn == 2 && numDayMonth >= 1) ||
+				(numDongAn == 1 && numBian >= 1 && numDayMonth >= 1)
+
+			if isShiJu {
+				bureauDesc := fmt.Sprintf("三合%s实局: %s", triad.Element, strings.Join(parts, " "))
+				result.Details = append(result.Details, bureauDesc)
+
+				// Impact on Yong Shen (Major)
+				if containsYongShen {
+					bureauInfluence += 4
+				} else if triad.Element == yongShenWuXing {
+					bureauInfluence += 3
+				} else if IsSheng(triad.Element, yongShenWuXing) {
+					bureauInfluence += 2
+				} else if IsKe(triad.Element, yongShenWuXing) {
+					bureauInfluence -= 4
+				}
+			} else if numDongAn > 0 || numBian > 0 {
+				refreshDesc := fmt.Sprintf("地支增强(%s之力): %s", triad.Element, strings.Join(parts, " "))
+				result.Details = append(result.Details, refreshDesc)
+				if triad.Element == yongShenWuXing || IsSheng(triad.Element, yongShenWuXing) {
+					bureauInfluence += 1
+				}
 			}
 		}
 	}
@@ -655,41 +754,67 @@ func Analyze(ctx AnalysisContext) (AnalysisResult, error) {
 	}
 
 	for _, meeting := range meetings {
-		found := make(map[string]string)
-		hasActive := false
 		count := 0
+		members := []BranchSource{}
 		for _, target := range meeting.Branches {
 			for _, b := range allBranches {
 				if b.Zhi == target {
-					found[target] = b.Source
-					if b.IsActive {
-						hasActive = true
-					}
+					members = append(members, b)
 					count++
 					break
 				}
 			}
 		}
-		if count == 3 && hasActive {
+
+		if count == 3 {
+			numDongAn := 0
+			numDayMonth := 0
+			numBian := 0
 			var parts []string
 			containsYongShen := false
-			for _, b := range meeting.Branches {
-				parts = append(parts, fmt.Sprintf("%s(%s)", b, found[b]))
-				if b == yongShenZhi {
+
+			for _, m := range members {
+				label := m.Source
+				if m.IsAnDong {
+					label += "/暗动"
+					numDongAn++
+				} else if m.IsDong {
+					numDongAn++
+				} else if m.IsDay || m.IsMonth {
+					numDayMonth++
+				} else if m.IsBian {
+					numBian++
+				}
+
+				parts = append(parts, fmt.Sprintf("%s(%s)", m.Zhi, label))
+				if m.Zhi == yongShenZhi {
 					containsYongShen = true
 				}
 			}
-			bureauDesc := fmt.Sprintf("三会%s局: %s", meeting.Element, strings.Join(parts, " "))
-			result.Details = append(result.Details, bureauDesc)
 
-			if containsYongShen {
-				bureauInfluence += 5
-			} else if meeting.Element == yongShenWuXing {
-				bureauInfluence += 3
-			} else if IsSheng(meeting.Element, yongShenWuXing) {
-				bureauInfluence += 2
-			} else if IsKe(meeting.Element, yongShenWuXing) {
-				bureauInfluence -= 5
+			isShiJu := (numDongAn == 3) ||
+				(numDongAn == 2 && numDayMonth >= 1) ||
+				(numDongAn == 1 && numBian >= 1 && numDayMonth >= 1)
+
+			if isShiJu {
+				bureauDesc := fmt.Sprintf("三会%s实局: %s", meeting.Element, strings.Join(parts, " "))
+				result.Details = append(result.Details, bureauDesc)
+
+				if containsYongShen {
+					bureauInfluence += 5
+				} else if meeting.Element == yongShenWuXing {
+					bureauInfluence += 3
+				} else if IsSheng(meeting.Element, yongShenWuXing) {
+					bureauInfluence += 2
+				} else if IsKe(meeting.Element, yongShenWuXing) {
+					bureauInfluence -= 5
+				}
+			} else if numDongAn > 0 || numBian > 0 {
+				refreshDesc := fmt.Sprintf("地支增强(%s之力): %s", meeting.Element, strings.Join(parts, " "))
+				result.Details = append(result.Details, refreshDesc)
+				if meeting.Element == yongShenWuXing || IsSheng(meeting.Element, yongShenWuXing) {
+					bureauInfluence += 1
+				}
 			}
 		}
 	}

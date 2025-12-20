@@ -160,7 +160,7 @@ func main() {
 		MonthZhi:     monthZhi,
 		DayXunKong:   dayKong,
 		Category:     category,
-		Gender:       "Female", // Default for demo Female
+		Gender:       "Female", // Default for demo Female  "Male" or "Female"
 		Date:         time.Now(),
 	}
 
