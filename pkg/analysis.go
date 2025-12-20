@@ -841,7 +841,7 @@ func Analyze(ctx AnalysisContext) (AnalysisResult, error) {
 
 	// Timing
 	timing := PredictTiming(result.YongShenYao, judgment, ctx.DayZhi)
-	result.Details = append(result.Details, fmt.Sprintf("应期: %s", timing))
+	result.Details = append(result.Details, timing)
 
 	return result, nil
 }
@@ -1409,7 +1409,7 @@ func GenerateReport(result AnalysisResult) string {
 	sb.WriteString(fmt.Sprintf("=== 六爻解卦报告 ===\n"))
 	sb.WriteString(fmt.Sprintf("用神: %s (爻位: %s)\n", result.YongShen, result.YongShenYao.Position))
 	sb.WriteString(fmt.Sprintf("总体旺衰: %s\n", result.Strength))
-	sb.WriteString(fmt.Sprintf("吉凶: %s\n", result.Judgment))
+	//sb.WriteString(fmt.Sprintf("吉凶: %s\n", result.Judgment))
 	sb.WriteString(fmt.Sprintf("应期预测: %s\n", result.Details[len(result.Details)-1])) // Last detail is usually timing or judgment
 
 	sb.WriteString("\n--- 分析详情 ---\n")
@@ -1417,7 +1417,7 @@ func GenerateReport(result AnalysisResult) string {
 		sb.WriteString(fmt.Sprintf("- %s\n", detail))
 	}
 
-	// sb.WriteString("\n--- 建议 ---\n")
+	//sb.WriteString("\n--- 建议 ---\n")
 	// if result.Judgment == "吉" {
 	// 	sb.WriteString("卦象吉利，可以积极行动，充满信心。\n")
 	// } else {
