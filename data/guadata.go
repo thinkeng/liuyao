@@ -3,10 +3,10 @@ package data
 import "fmt"
 
 type YaoData struct {
-	Name         string
-	YaoCi        string
-	XiangCi      string
-	YaoDongHanYi string
+	Name         string `json:"name"`
+	YaoCi        string `json:"yaoCi"`
+	XiangCi      string `json:"xiangCi"`
+	YaoDongHanYi string `json:"yaoDongHanYi"`
 }
 
 type GuaData struct {
