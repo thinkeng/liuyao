@@ -36,7 +36,7 @@ func randomToss() string {
 	return string(result)
 }
 
-func main22() {
+func main() {
 
 	const filename = "卦辞.md"
 
@@ -143,7 +143,8 @@ func main22() {
 	// For now, hardcode a category or use a simple input simulation
 	// In a real CLI, we would use flags or interactive input.
 	// Let's default to "Wealth" for demonstration.
-	category := pkg.CategoryWealth
+	//category := pkg.CategoryWealth
+	category := pkg.CategoryMarriage
 	fmt.Printf("设定求测事项: %s (默认)\n", category)
 
 	// Need Bian Hexagram and Changed array
@@ -159,6 +160,7 @@ func main22() {
 		MonthZhi:     monthZhi,
 		DayXunKong:   dayKong,
 		Category:     category,
+		Gender:       "Female", // Default for demo Female
 		Date:         time.Now(),
 	}
 

@@ -26,6 +26,7 @@ type AnalysisContext struct {
 	MonthZhi     string    // Month Earthly Branch
 	DayXunKong   string    // Day Xun Kong (Empty Branches)
 	Category     string    // Question Category
+	Gender       string    // Gender: "Male" or "Female"
 	Date         time.Time // Date of divination
 }
 
@@ -51,7 +52,7 @@ func Analyze(ctx AnalysisContext) (AnalysisResult, error) {
 	}
 
 	// 1. Determine Use God (Yong Shen)
-	yongShen := DetermineYongShen(ctx.Category)
+	yongShen := DetermineYongShen(ctx.Category, ctx.Gender)
 	result.YongShen = yongShen
 
 	// --- Enrich Text Info (Gua & Yao) ---
@@ -560,103 +561,158 @@ func Analyze(ctx AnalysisContext) (AnalysisResult, error) {
 		}
 	}
 
-	// Phase 3: Judgment & Timing
-	judgment, judgmentDetails := JudgeJiXiong(result.Strength)
-	result.Judgment = judgment
-	result.Details = append(result.Details, judgmentDetails...)
-
-	// Global San He / San Hui Check
-	// We need to check for combinations involving Moving Lines, Day, Month, AND Static Lines (if activated).
-	// A San He bureau is valid if all 3 branches exist and at least one is "Active" (Moving, Day, or Month).
-
+	// Phase 3: Global Bureau Check (San He / San Hui)
+	// A San He/San Hui bureau is valid if all required branches exist and at least one is "Active".
 	type BranchSource struct {
 		Zhi      string
-		Source   string // e.g., "初爻", "日建", "五爻变"
+		Source   string
 		IsActive bool
 	}
 
 	var allBranches []BranchSource
-
-	// Add Day/Month (Active)
 	allBranches = append(allBranches, BranchSource{Zhi: ctx.DayZhi, Source: "日建", IsActive: true})
 	allBranches = append(allBranches, BranchSource{Zhi: ctx.MonthZhi, Source: "月建", IsActive: true})
 
-	// Add Lines
 	for i, info := range guaInfo {
 		zhi := string([]rune(info.Ganzhi)[1])
 		isMoving := false
 		if len(ctx.Changed) > i && ctx.Changed[i] {
 			isMoving = true
 		}
-
-		// Static lines are not active, Moving lines are active
 		allBranches = append(allBranches, BranchSource{Zhi: zhi, Source: info.Position, IsActive: isMoving})
-
-		if isMoving {
-			// Add Changed Line (Active)
-			if len(bianGuaInfoAll) > i {
-				bianZhi := string([]rune(bianGuaInfoAll[i].Ganzhi)[1])
-				allBranches = append(allBranches, BranchSource{Zhi: bianZhi, Source: info.Position + "变", IsActive: true})
-			}
+		if isMoving && len(bianGuaInfoAll) > i {
+			bianZhi := string([]rune(bianGuaInfoAll[i].Ganzhi)[1])
+			allBranches = append(allBranches, BranchSource{Zhi: bianZhi, Source: info.Position + "变", IsActive: true})
 		}
 	}
 
+	yongShenZhi := string([]rune(result.YongShenYao.Ganzhi)[1])
+	yongShenWuXing = GetWuXingFromGanZhi(result.YongShenYao.Ganzhi)
+	bureauInfluence := 0
+
 	// Check San He
 	triads := []struct {
-		Name     string
 		Branches []string
 		Element  string
 	}{
-		{"申子辰", []string{"申", "子", "辰"}, "水"},
-		{"亥卯未", []string{"亥", "卯", "未"}, "木"},
-		{"寅午戌", []string{"寅", "午", "戌"}, "火"},
-		{"巳酉丑", []string{"巳", "酉", "丑"}, "金"},
+		{[]string{"申", "子", "辰"}, "水"},
+		{[]string{"亥", "卯", "未"}, "木"},
+		{[]string{"寅", "午", "戌"}, "火"},
+		{[]string{"巳", "酉", "丑"}, "金"},
 	}
 
 	for _, triad := range triads {
-		found := make(map[string]string) // Branch -> Source Description
+		found := make(map[string]string)
 		hasActive := false
 		count := 0
-
 		for _, target := range triad.Branches {
-			// Find best source for this target (prefer Active)
-			var bestSource string
-			foundTarget := false
-
 			for _, b := range allBranches {
 				if b.Zhi == target {
-					if !foundTarget {
-						bestSource = b.Source
-						foundTarget = true
-						if b.IsActive {
-							hasActive = true
-						}
-					} else {
-						// If we already found it, but this one is active and previous wasn't, swap it
-						if b.IsActive && !strings.Contains(bestSource, "变") && !strings.Contains(bestSource, "日") && !strings.Contains(bestSource, "月") {
-							// Simple heuristic: prefer active sources for display if possible, or just keep first found.
-							// Let's just mark hasActive.
-							hasActive = true
-						}
+					found[target] = b.Source
+					if b.IsActive {
+						hasActive = true
 					}
+					count++
+					break
 				}
-			}
-
-			if foundTarget {
-				found[target] = bestSource
-				count++
 			}
 		}
 
 		if count == 3 && hasActive {
-			// Construct description: "申(五爻) 子(初爻) 辰(三爻)"
 			var parts []string
+			containsYongShen := false
 			for _, b := range triad.Branches {
 				parts = append(parts, fmt.Sprintf("%s(%s)", b, found[b]))
+				if b == yongShenZhi {
+					containsYongShen = true
+				}
 			}
-			result.Details = append(result.Details, fmt.Sprintf("三合%s局: %s", triad.Element, strings.Join(parts, " ")))
+			bureauDesc := fmt.Sprintf("三合%s局: %s", triad.Element, strings.Join(parts, " "))
+			result.Details = append(result.Details, bureauDesc)
+
+			// Impact on Yong Shen
+			if containsYongShen {
+				bureauInfluence += 4 // Strong integration
+			} else if triad.Element == yongShenWuXing {
+				bureauInfluence += 3 // Same element helps
+			} else if IsSheng(triad.Element, yongShenWuXing) {
+				bureauInfluence += 2 // Sheng helps
+			} else if IsKe(triad.Element, yongShenWuXing) {
+				bureauInfluence -= 4 // Ke hurts
+			}
 		}
 	}
+
+	// Check San Hui
+	meetings := []struct {
+		Branches []string
+		Element  string
+	}{
+		{[]string{"亥", "子", "丑"}, "水"},
+		{[]string{"寅", "卯", "辰"}, "木"},
+		{[]string{"巳", "午", "未"}, "火"},
+		{[]string{"申", "酉", "戌"}, "金"},
+	}
+
+	for _, meeting := range meetings {
+		found := make(map[string]string)
+		hasActive := false
+		count := 0
+		for _, target := range meeting.Branches {
+			for _, b := range allBranches {
+				if b.Zhi == target {
+					found[target] = b.Source
+					if b.IsActive {
+						hasActive = true
+					}
+					count++
+					break
+				}
+			}
+		}
+		if count == 3 && hasActive {
+			var parts []string
+			containsYongShen := false
+			for _, b := range meeting.Branches {
+				parts = append(parts, fmt.Sprintf("%s(%s)", b, found[b]))
+				if b == yongShenZhi {
+					containsYongShen = true
+				}
+			}
+			bureauDesc := fmt.Sprintf("三会%s局: %s", meeting.Element, strings.Join(parts, " "))
+			result.Details = append(result.Details, bureauDesc)
+
+			if containsYongShen {
+				bureauInfluence += 5
+			} else if meeting.Element == yongShenWuXing {
+				bureauInfluence += 3
+			} else if IsSheng(meeting.Element, yongShenWuXing) {
+				bureauInfluence += 2
+			} else if IsKe(meeting.Element, yongShenWuXing) {
+				bureauInfluence -= 5
+			}
+		}
+	}
+
+	// Adjust Strength if bureau influence is significant
+	if bureauInfluence >= 3 {
+		if result.Strength == "弱" {
+			result.Strength = "强 (合局生助)"
+		} else if result.Strength == "中平" {
+			result.Strength = "强"
+		}
+	} else if bureauInfluence <= -3 {
+		if result.Strength == "强" {
+			result.Strength = "弱 (合局克制)"
+		} else if result.Strength == "中平" {
+			result.Strength = "弱"
+		}
+	}
+
+	// Phase 4: Judgment & Timing
+	judgment, judgmentDetails := JudgeJiXiong(result.Strength, ctx.Category, ctx.Gender)
+	result.Judgment = judgment
+	result.Details = append(result.Details, judgmentDetails...)
 
 	// Timing
 	timing := PredictTiming(result.YongShenYao, judgment, ctx.DayZhi)
@@ -666,20 +722,19 @@ func Analyze(ctx AnalysisContext) (AnalysisResult, error) {
 }
 
 // DetermineYongShen maps the category to the corresponding Liu Qin
-func DetermineYongShen(category string) string {
+func DetermineYongShen(category string, gender string) string {
 	switch category {
 	case CategoryCareer:
 		return "官鬼"
 	case CategoryWealth:
 		return "妻财"
 	case CategoryMarriage:
-		// For men: Wife Wealth, For women: Officer Ghost?
-		// For simplicity, let's assume generic "Marriage" often looks at Wife Wealth (for men) or Officer Ghost (for women).
-		// Or maybe the user should specify gender?
-		// Let's default to "妻财" (Wife Wealth) as a placeholder or require more specific input.
-		// Actually, standard: Man asks -> Wife Wealth, Woman asks -> Officer Ghost.
-		// Let's stick to a simple mapping for now.
-		return "妻财" // Defaulting to Wealth/Wife for now
+		// For men: Wife Wealth, For women: Officer Ghost
+		if gender == "Female" {
+			return "官鬼"
+		}
+		// Default to "妻财" for Male or unspecified
+		return "妻财"
 	case CategoryStudy:
 		return "父母"
 	case CategorySafety:
@@ -1027,17 +1082,26 @@ const (
 func CalculateStrength(yaoInfo GuaInfo, bianYaoInfo *GuaInfo, isMoving bool, monthZhi, dayZhi, dayXunKong string) (string, []string) {
 	details := []string{}
 	yaoWuXing := GetWuXingFromGanZhi(yaoInfo.Ganzhi)
+	yaoZhi := string([]rune(yaoInfo.Ganzhi)[1])
 
 	monthWuXing := GetWuXing(monthZhi)
 	dayWuXing := GetWuXing(dayZhi)
 
+	score := 0
+
 	// 1. Month Influence (Greatest)
 	monthStrength := GetMonthStrength(yaoWuXing, monthWuXing)
 	details = append(details, fmt.Sprintf("月建 (%s): %s", monthWuXing, monthStrength))
+	if IsStrong(monthStrength) {
+		score += 2
+	}
 
 	// 2. Day Influence (Second Greatest)
 	dayStrength := GetDayStrength(yaoWuXing, dayWuXing)
 	details = append(details, fmt.Sprintf("日辰 (%s): %s", dayWuXing, dayStrength))
+	if IsStrong(dayStrength) {
+		score += 2
+	}
 
 	// 3. Moving Line / Changed Line Influence
 	bianStrength := ""
@@ -1066,26 +1130,55 @@ func CalculateStrength(yaoInfo GuaInfo, bianYaoInfo *GuaInfo, isMoving bool, mon
 		}
 	}
 
-	// 4. Xun Kong / Ri Po / An Dong
+	if bianStrength == "Hui Tou Sheng" || bianStrength == "Jin Shen" {
+		score += 3
+	} else if bianStrength == "Hui Tou Ke" || bianStrength == "Tui Shen" {
+		score -= 5
+	} else if bianStrength == "Xie Qi" {
+		score -= 2
+	}
+
+	// 4. Advanced Interactions (Chong, He, Hai, Xing) with Month/Day
+	if IsChong(monthZhi, yaoZhi) {
+		details = append(details, "月破 (月冲)")
+		score -= 4
+	}
+	if he := CheckLiuHe(monthZhi, yaoZhi); he != "" {
+		details = append(details, fmt.Sprintf("月合 (%s)", he))
+		score += 2
+	}
+	if he := CheckLiuHe(dayZhi, yaoZhi); he != "" {
+		details = append(details, fmt.Sprintf("日合 (%s)", he))
+		score += 2
+	}
+	if CheckLiuHai(dayZhi, yaoZhi) {
+		details = append(details, "日害 (六害)")
+		score -= 1
+	}
+	if xing := CheckXing(dayZhi, yaoZhi); xing != "" {
+		details = append(details, fmt.Sprintf("日刑 (%s)", xing))
+		score -= 1
+	}
+
+	// 5. Xun Kong / Ri Po / An Dong
 	special := []string{}
 	if CheckXunKong(yaoInfo.Ganzhi, dayXunKong) {
 		special = append(special, "旬空")
+		score -= 1
 	}
 
-	// Check Day Clash (Ri Chong)
-	// Get Zhi from Ganzhi
-	yaoZhi := string([]rune(yaoInfo.Ganzhi)[1])
 	if IsChong(dayZhi, yaoZhi) {
 		if !isMoving {
-			// Static Line Clashed by Day
 			if IsStrong(monthStrength) {
-				special = append(special, "暗动") // Strong + Clashed = Dark Move
+				special = append(special, "暗动")
+				score += 1
 			} else {
-				special = append(special, "日破") // Weak + Clashed = Day Break
+				special = append(special, "日破")
+				score -= 3
 			}
 		} else {
-			// Moving Line Clashed by Day = Ri Chong
 			special = append(special, "日冲")
+			score -= 1
 		}
 	}
 
@@ -1093,52 +1186,12 @@ func CalculateStrength(yaoInfo GuaInfo, bianYaoInfo *GuaInfo, isMoving bool, mon
 		details = append(details, fmt.Sprintf("特殊状态: %s", strings.Join(special, ", ")))
 	}
 
-	// Combine for overall assessment
+	// Final Conclusion
 	overall := "弱"
-	score := 0
-	if IsStrong(monthStrength) {
-		score += 2
-	}
-	if IsStrong(dayStrength) {
-		score += 2
-	}
-
-	if bianStrength == "Hui Tou Sheng" || bianStrength == "Jin Shen" {
-		score += 3
-	} else if bianStrength == "Hui Tou Ke" || bianStrength == "Tui Shen" {
-		score -= 5 // Major negative
-	} else if bianStrength == "Xie Qi" {
-		score -= 2 // Drain
-	}
-
-	for _, s := range special {
-		if s == "日破" {
-			score -= 3
-		} // Very bad
-		if s == "旬空" {
-			score -= 1
-		} // Temporary weak
-		if s == "暗动" {
-			score += 1
-		} // Slight boost
-		if s == "日冲" {
-			score -= 1
-		} // Conflict
-	}
-
-	// 5. Interactions with other Moving Lines (Yuan Shen / Ji Shen)
-	// We need access to all moving lines.
-	// This requires passing the full list of moving lines to CalculateStrength or handling it outside.
-	// Let's handle it here if we pass the list of moving lines' Wu Xing.
-	// For now, let's assume we don't have it here and handle it in Analyze function or pass it.
-	// Let's update CalculateStrength signature to accept "otherMovingWuXing []string".
-
-	// ... (Wait, changing signature again is painful. Let's do it in Analyze and append to details/strength there?)
-	// Yes, let's keep CalculateStrength focused on the line itself + its own change.
-	// External interactions can be calculated in Analyze.
-
 	if score > 0 {
 		overall = "强"
+	} else if score == 0 {
+		overall = "中平"
 	}
 
 	return overall, details
@@ -1175,17 +1228,35 @@ func GetDayStrength(yao, day string) string {
 // Phase 3: Judgment & Timing
 
 // JudgeJiXiong determines if the outcome is Auspicious or Inauspicious
-func JudgeJiXiong(yongShenStrength string) (string, []string) {
-	// Simple Logic V1:
-	// Strong Use God -> Ji
-	// Weak Use God -> Xiong
-
+func JudgeJiXiong(yongShenStrength string, category string, gender string) (string, []string) {
 	judgment := "凶"
-	if yongShenStrength == "强" || strings.Contains(yongShenStrength, "强") {
+	isStrong := yongShenStrength == "强" || strings.Contains(yongShenStrength, "强")
+
+	if isStrong {
 		judgment = "吉"
+	} else if yongShenStrength == "中平" {
+		judgment = "平"
 	}
 
-	details := []string{fmt.Sprintf("吉凶判断: %s (基于旺衰: %s)", judgment, yongShenStrength)}
+	details := []string{fmt.Sprintf("吉凶判断: %s (基于用神旺衰: %s)", judgment, yongShenStrength)}
+
+	// Gender & Category Specific Refinements
+	// if category == CategoryMarriage {
+	// 	if gender == "Female" {
+	// 		if isStrong {
+	// 			details = append(details, "女性测婚: 用神(官鬼)旺相，主夫星得力，缘分稳固。")
+	// 		} else {
+	// 			details = append(details, "女性测婚: 用神(官鬼)衰弱，需提防感情冷淡或阻碍。")
+	// 		}
+	// 	} else {
+	// 		if isStrong {
+	// 			details = append(details, "男性测婚: 用神(妻财)旺相，主妻贤家富，感情和谐。")
+	// 		} else {
+	// 			details = append(details, "男性测婚: 用神(妻财)衰弱，可能暗示求财或感情不顺。")
+	// 		}
+	// 	}
+	// }
+
 	return judgment, details
 }
 
@@ -1221,12 +1292,12 @@ func GenerateReport(result AnalysisResult) string {
 		sb.WriteString(fmt.Sprintf("- %s\n", detail))
 	}
 
-	sb.WriteString("\n--- 建议 ---\n")
-	if result.Judgment == "吉" {
-		// sb.WriteString("卦象吉利，可以积极行动，充满信心。\n")
-	} else {
-		// sb.WriteString("卦象不佳，建议谨慎行事，静待时机。\n")
-	}
+	// sb.WriteString("\n--- 建议 ---\n")
+	// if result.Judgment == "吉" {
+	// 	sb.WriteString("卦象吉利，可以积极行动，充满信心。\n")
+	// } else {
+	// 	sb.WriteString("卦象不佳，建议谨慎行事，静待时机。\n")
+	// }
 
 	return sb.String()
 }
