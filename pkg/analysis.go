@@ -12,8 +12,11 @@ const (
 	CategoryWealth   = "Wealth"   // 求财
 	CategoryMarriage = "Marriage" // 婚姻
 	CategoryStudy    = "Study"    // 学业/文书
-	CategorySafety   = "Safety"   // 平安/子嗣
+	CategorySafety   = "Safety"   // 平安
 	CategoryHealth   = "Health"   // 健康 (Self)
+	CategorySiblings = "Siblings" // 兄弟/朋友/合伙人
+	CategoryParents  = "Parents"  // 父母/长辈
+	CategoryChildren = "Children" // 子孙/晚辈
 )
 
 // AnalysisContext holds the input data for analysis
@@ -862,6 +865,12 @@ func DetermineYongShen(category string, gender string) string {
 		return "妻财"
 	case CategoryStudy:
 		return "父母"
+	case CategoryParents:
+		return "父母" // Explicit parent/elder category
+	case CategorySiblings:
+		return "兄弟" // Explicit sibling/friend category
+	case CategoryChildren:
+		return "子孙" // Explicit children/junior category
 	case CategorySafety:
 		return "子孙"
 	case CategoryHealth:
