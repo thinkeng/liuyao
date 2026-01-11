@@ -86,6 +86,24 @@ func main() {
 
 		// Display Shen Sha Config
 		shenShaConfig := pkg.GetShenShaConfig(dayGan, dayZhi, monthZhi)
+
+		// Calculate Gua Shen
+		var shiPosition int
+		var isYang bool
+		for i, info := range result {
+			if info.ShiYing == "世" {
+				shiPosition = i + 1
+				if hexagram[i] == '1' {
+					isYang = true
+				}
+				break
+			}
+		}
+		guaShen := pkg.GetGuaShen(shiPosition, isYang)
+		if guaShen != "" {
+			shenShaConfig = append(shenShaConfig, fmt.Sprintf("卦身:%s", guaShen))
+		}
+
 		fmt.Printf("神煞: %s\n", strings.Join(shenShaConfig, " "))
 
 		fmt.Println("====================================")

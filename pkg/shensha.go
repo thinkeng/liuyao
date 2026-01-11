@@ -129,6 +129,25 @@ func GetShenShaConfig(dayGan, dayZhi, monthZhi string) []string {
 	return config
 }
 
+// GetGuaShen Calculates the Hexagram Body (Gua Shen) based on Shi Yao position and polarity.
+// shiPosition: 1-6 (Line position)
+// isYang: true if Shi Yao is a Yang line, false if Yin line.
+func GetGuaShen(shiPosition int, isYang bool) string {
+	earthlyBranches := []string{"子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"}
+	if shiPosition < 1 || shiPosition > 6 {
+		return ""
+	}
+
+	startIdx := 0 // Yang Shi starts from Zi (0)
+	if !isYang {
+		startIdx = 6 // Yin Shi starts from Wu (6)
+	}
+
+	// Forward counting
+	idx := (startIdx + shiPosition - 1) % 12
+	return earthlyBranches[idx]
+}
+
 // --- Helper Functions ---
 
 func isGuiRen(gan, zhi string) bool {
